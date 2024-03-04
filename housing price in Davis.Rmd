@@ -1,0 +1,230 @@
+---
+title: "housingpriceinDavis"
+author: "Fengsheng Zhou"
+date: "7/30/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+**Introduction **
+
+In the research, we are interested in studying the housing price fluctuation in Davis. There are lots of potential factors that affect housing price such as number of bedroom(bedroom), number of bathroom(bathroom), gross living area(GLA), lot size(lot_size), year built(year), number of garage(garage) and the distance to the center of the DownTown of Davis(distance). The goal of this experiment is to find out how the housing price will be affected by the different factor and build a model for the significant variables. The approaches we will take in the project are plot including boxplot, histogram, qq-plot and residual plot,  Shapiro-Wilks Test, single factor ANOVA, and so on; meanwhile, the confidence level we assume in this research is 95% and the corresponding alpha value is 0.05.
+
+
+
+
+**Building process**
+
+```{r}
+house <- read.csv("~/Desktop/house.csv")
+library(MASS)
+library(ggplot2)
+library(leaps)
+```
+
+
+```{r}
+ggplot(data=house,aes(y=Price))+
+  geom_boxplot(fill="blue")
+ggplot(data=house,aes(x=Price))+ 
+   geom_histogram(fill="blue")
+```
+
+With original data, I created a boxplot and histogram of the housing prices to check the rationality. From the boxplot of the housing prices, we can observe that the mean and median of the housing prices is around $700000. Addtionally, there are obvious outliers in the group. Also from the histogram, we can find it is right-skewed. 
+Therefore, the data with the price of over $1500000 (observed from boxplot) will be removed as outliers. 
+
+
+```{r}
+house<-house[house$Price<1500000, ]
+ggplot(data=house,aes(y=Price))+
+  geom_boxplot(fill="pink")
+ggplot(data=house,aes(x=Price))+ 
+   geom_histogram(fill="pink")
+
+
+```
+
+After removing the outliers, I recreate the boxplot and histogram of the housing prices. And without doubt, both of the plots shows a much better performance than the previous plots. 
+
+
+```{r}
+#variable names setup
+price<-house$Price
+bedroom<-house$Bedrooms
+bathroom<-house$Bathrooms
+GLA<-house$GrossLivingArea
+lotSize<-house$Lot_size
+year<-2021-house$Year_built
+garage<-house$Garage
+distance<-house$Distance
+
+```
+
+```{r} 
+pairs(house[,1:8], panel = panel.smooth, main = "housing price data")
+
+```
+
+From the Scatterplot Matrices, we can observe that most of our variables have a positive linear relationship with the outcome variable, which is the housing price. Although the trend between the price and lot size seems a little bit unclear, it is good enough to show the positive linear relation since there are three obvious outliers in the plot. Therefore, we can build our regression model.
+
+
+```{r}
+fit1<-lm(price~bedroom+bathroom+GLA+lotSize +year+garage+distance)
+summary(fit1)
+anova(fit1)
+confint(fit1)
+
+```
+
+I build an original regression model including all the variables, which is price=103727.665+28620.197bedroom+24169.772bathroom+226.990GLA+11.221lot_size+
+32321.732Garage+2397.599distance-87.767year.
+
+The R-squared in this model is 0.8137 and adjusted R-squared is 0.8111, which indicates that our model is quite efficient.
+
+The F-statistic number is 316.9 on 7 and 508 DF and the corresponding p-value is < 2.2e-16, which is much smaller than 0.5. It shows the highly linear relationship in our model. 
+
+Addtionally, although the values shows our success of the model, the model is not perpect because the data reveals that the variable of year and distance seems not signifcant in the model. We may still need further improvement. 
+
+```{r}
+par(mfrow = c(3,3))
+plot(bedroom, residuals(fit1), main="residual plot") 
+abline(h=0, col="red")
+abline(h=300000, col="blue")
+abline(h=-300000, col="blue")
+plot(bathroom, residuals(fit1), main="residual plot") 
+abline(h=0, col="red")
+abline(h=300000, col="blue")
+abline(h=-300000, col="blue")
+plot(GLA, residuals(fit1), main="residual plot") 
+abline(h=0, col="red")
+abline(h=300000, col="blue")
+abline(h=-300000, col="blue")
+plot(lotSize, residuals(fit1), main="residual plot")
+abline(h=0, col="red")
+abline(h=300000, col="blue")
+abline(h=-300000, col="blue")
+plot(year, residuals(fit1), main="residual plot") 
+abline(h=0, col="red")
+abline(h=300000, col="blue")
+abline(h=-300000, col="blue")
+plot(garage, residuals(fit1), main="residual plot")
+abline(h=0, col="red")
+abline(h=300000, col="blue")
+abline(h=-300000, col="blue")
+plot(distance, residuals(fit1), main="residual plot") 
+abline(h=0, col="red")
+abline(h=300000, col="blue")
+abline(h=-300000, col="blue")
+
+```
+
+In order to check the assumption of variance constancy and linearity, I do residual analysis for the individual variables . Form the residual plots, the points nicely fill out this whole space; therefore, there is no violation of linearity. And the points distribute pretty evenly around the h=0; so, there is no violation of constant variance. Since there is 4 obvious outliers in the residual plot of lot size, the plot should be good without them. Therefore, we fullfill the assumption of constant variance and linearity.
+
+
+
+
+```{r}
+par(mfrow = c(1,1))
+plot(fit1,which = 1)
+plot(fit1,which = 2)
+```
+
+From the residual plot from the whole regression model, we can see the points nicely fill out this whole space, and the points distribute pretty evenly around the h=0; so, there is no violation of linearity and constant variance. However, we might violate the assumption of the normality because a few points are off the two sides of the qq-line.
+
+```{r}
+boxcox(fit1)
+
+```
+
+To see if we can do a model transformation, I go throught a boxcox test, but the result shows the regressional model have the best format with the data. Thurs I will use a model selection procedure to help me enhance the efficiency of the model.
+
+```{r}
+cor(cbind(bedroom,bathroom,GLA,lotSize,year,garage,distance))
+
+```
+
+Before rebuilting the model, however, we need to check the multicollinearity problem. From the correlation matrix, we can see the predictors are not correlated with each other. Hence, we do not need to care about multicollinearity problem.
+
+```{r}
+varname= c("bedroom", "bathroom", "GLA", "lotSize", "year", "garage", "distance")
+X =cbind(bedroom,bathroom,GLA,lotSize,year,garage,distance)
+lep=leaps(X,price,method='adjr2',nbest = 1,names=varname)
+cbind(lep$which,'adjr2'= lep$adjr2)
+
+
+house_backward <- regsubsets(price~bedroom+bathroom+GLA+lotSize+year+garage+distance, data = house, method = "backward")
+cbind(summary(house_backward)$which, "bic" = summary(house_backward)$bic)
+
+cbind(summary(house_backward)$which, "bic" = summary(house_backward)$adjr2)
+
+
+
+house_ex <- leaps(X,price, method = "Cp", nbest = 1, names = varname)
+cbind(house_ex$which, "Mallows' Cp" = house_ex$Cp)
+```
+
+I build some new models for improvement using a model selection procedure. Both of the stepwise model selection procedure and Mallow’s CP selection procedure get the same result that the variable of distance and year are not efficient in the original model. Therefore, we could remove distance and year and use the remaining predictors to build a new model.
+
+
+```{r}
+fit<-lm(price~bedroom+bathroom+GLA+lotSize+garage)
+summary(fit)
+anova(fit)
+s=summary(fit)
+s$coefficients
+confint(fit)
+
+```
+
+The new model including bedroom, bathroom, GLA, lot_Size, garage, is 
+price = 102667.659 + 27375.024bedroom + 25567.268bathroom + 228.818GLA + 11.268lot_size + 33019.706Garage.
+
+When other conditions remain unchanged, 
+each additional bedroom adds an average of $27375.024, whose boundary is [11908.493645  42841.55442]; 
+each additional bathroom adds an average of $25567.26, whose boundary is [5531.752639  45602.78408];
+each additional unit of GLA adds an average of $228.818, whose boundary is [199.553269    258.08254];
+each additional unit of lot_size adds an average of $11.268, whose boundary is [8.871741     13.46472];
+each additional garage adds an average of $33019.706, whose boundary is [21024.404513  45015.00766].
+
+
+The R-squared of the new model is 0.8135 and adjusted R-squared is 0.8117. Although the R-squared of the new model is a little smaller than the previous one, the adjusted R-squared improved a little, which shows more efficiency. 
+
+The F-statistic number is 445 on 5 and 510 DF and the corresponding p-value is < 2.2e-16, which also shows the highly linear relationship in our model. 
+
+In the new model, since I have removed the insignificant predictors, the remaining predictors show high significance. 
+
+
+
+```{r}
+plot(fit,which = 1)
+plot(fit,which = 2)
+```
+
+From the residual plot from the new regression model, we can see the points nicely fill out this whole space, and the points distribute pretty evenly around the h=0; so, there is no violation of linearity and constant variance. However, it might still violate the assumption of the normality because a few points are off the two sides of the qq-line.
+
+```{r}
+boxcox(fit)
+the.SWtest1=shapiro.test(fit$residuals)
+the.SWtest1$p.value
+```
+
+Again, to see if model transformation is applicable, I apply boxcox test, but the result shows there is no need for model transformation. So I further operate Shapiro-Wilks test, which obtains the p-value 0.00000489 that means our data meet the assumption of normality. 
+
+
+**Conclusion **
+
+Through fully analyst of the data by going through various tests and I found that the outcome variable are significantly influenced by bedroom, bathroom, GLA, lot_Size, garage. Although the distance from the location to the city center is considered as one of the most important factor that may influence the housing price, the data shows it may not be able to alter the price of the houses in Davis too much. The final regression model is confirmed as 
+price = 102667.659 + 27375.024bedroom + 25567.268bathroom + 228.818GLA + 11.268lot_size + 33019.706Garage.
+
+
+
+
+
+
+
+
+
+
+
